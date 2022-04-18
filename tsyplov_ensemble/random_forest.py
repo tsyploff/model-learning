@@ -3,12 +3,11 @@ import time
 
 from typing import Optional, Union
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.ensemble import BaseEnsemble
 
 from .bagging import bootstrap_sample
 
 
-class RandomForestClassifierCustom(BaseEnsemble, ClassifierMixin, BaseEstimator):
+class RandomForestClassifierCustom(ClassifierMixin, BaseEstimator):
     def __init__(
             self,
             base_estimator,
@@ -19,7 +18,8 @@ class RandomForestClassifierCustom(BaseEnsemble, ClassifierMixin, BaseEstimator)
             random_state: Optional[int] = None,
             bootstrap: bool = True
     ):
-        super(BaseEnsemble, self).__init__(base_estimator=base_estimator, n_estimators=n_estimators)
+        self.base_estimator_ = base_estimator
+        self.n_estimators = n_estimators
         self.max_samples = max_samples
         self.min_samples = min_samples
         self.random_state = random_state
@@ -50,7 +50,7 @@ class RandomForestClassifierCustom(BaseEnsemble, ClassifierMixin, BaseEstimator)
             X_train = X[selected][:, features]
             y_train = y[selected]
 
-            estimator = self._make_estimator(append=False, random_state=seed + i)
+            estimator = self.base_estimator_.__class__(**self.base_estimator_.get_params())
             estimator.fit(X_train, y_train)
 
             self.estimators_.append(estimator)

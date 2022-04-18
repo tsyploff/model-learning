@@ -3,7 +3,6 @@ import time
 
 from typing import Callable, Optional, Union
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.ensemble import BaseEnsemble
 
 
 def bootstrap_sample(
@@ -49,19 +48,19 @@ def out_of_bag_score(
         return scoring(estimator.predict(X[oob]), y[oob])
 
 
-class BaggingClassifierCustom(BaseEnsemble, ClassifierMixin, BaseEstimator):
+class BaggingClassifierCustom(ClassifierMixin, BaseEstimator):
     def __init__(
             self,
-            base_estimator,
+            base_estimator=None,
             n_estimators: int = 10,
             max_samples: Optional[Union[int, float]] = 1.0,
             min_samples: Optional[Union[int, float]] = 0.0,
             oob_score: bool = False,
             oob_scoring: Optional[Callable[[np.array, np.array], float]] = None,
-            random_state: Optional[int] = None,
-            bootstrap: bool = True
+            random_state: Optional[int] = None, bootstrap: bool = True
     ):
-        super(BaseEnsemble, self).__init__(base_estimator=base_estimator, n_estimators=n_estimators)
+        self.base_estimator = base_estimator
+        self.n_estimators = n_estimators
         self.max_samples = max_samples
         self.min_samples = min_samples
         self.oob_score = oob_score
@@ -69,12 +68,14 @@ class BaggingClassifierCustom(BaseEnsemble, ClassifierMixin, BaseEstimator):
         self.random_state = random_state
         self.bootstrap = bootstrap
 
+        self.estimator_params = None
         self.estimators_ = []
         self.oob_score_ = None
 
     def fit(self, X: np.array, y: np.array) -> 'BaggingClassifierCustom':
         self.estimators_ = []
         self.oob_score_ = None
+        self.estimator_params = list(self.base_estimator.get_params().keys())
 
         seed = self.random_state if self.random_state is not None else int(time.time() % 1000)
         n_samples, n_features = X.shape
@@ -85,12 +86,12 @@ class BaggingClassifierCustom(BaseEnsemble, ClassifierMixin, BaseEstimator):
             np.random.seed(seed + i)
 
             indices = np.arange(n_samples)
-            selected = bootstrap_sample(indices, self.min_samples, self.max_samples, self.bootstrap)
+            selected = bootstrap_sample(indices, self.max_samples, self.min_samples, self.bootstrap)
 
             X_train = X[selected]
             y_train = y[selected]
 
-            estimator = self._make_estimator(append=False, random_state=seed + i)
+            estimator = self.base_estimator.__class__(**self.base_estimator.get_params())
             estimator.fit(X_train, y_train)
 
             self.estimators_.append(estimator)
